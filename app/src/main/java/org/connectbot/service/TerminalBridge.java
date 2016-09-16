@@ -519,7 +519,7 @@ public class TerminalBridge implements VDUDisplay {
 	 *
 	 * @param sizeDp Size of font in dp
 	 */
-	private final void setFontSize(float sizeDp) {
+	public final void setFontSize(float sizeDp) {
 		if (sizeDp <= 0.0) {
 			return;
 		}

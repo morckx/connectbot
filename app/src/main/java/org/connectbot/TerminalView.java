@@ -41,7 +41,6 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PixelXorXfermode;
 import android.graphics.RectF;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -107,6 +106,8 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 	private Matcher mCodeMatcher = null;
 	private AccessibilityEventSender mEventSender = null;
 
+	private char[] singleDeadKey = new char[1];
+
 	private static final String BACKSPACE_CODE = "\\x08\\x1b\\[K";
 	private static final String CONTROL_CODE_PATTERN = "\\x1b\\[K[^m]+[m|:]";
 
@@ -140,7 +141,6 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 
 		cursorPaint = new Paint();
 		cursorPaint.setColor(bridge.color[bridge.defaultFg]);
-		cursorPaint.setXfermode(new PixelXorXfermode(bridge.color[bridge.defaultBg]));
 		cursorPaint.setAntiAlias(true);
 
 		cursorStrokePaint = new Paint(cursorPaint);
@@ -198,14 +198,12 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 			private TerminalBridge bridge = TerminalView.this.bridge;
 			private float totalY = 0;
 
+			/**
+			 * This should only handle scrolling when terminalTextViewOverlay is {@code null}, but
+			 * we need to handle the page up/down gesture if it's enabled.
+			 */
 			@Override
 			public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-				// The terminalTextViewOverlay handles scrolling. Only handle scrolling if it
-				// is not available (i.e. on pre-Honeycomb devices).
-				if (terminalTextViewOverlay != null) {
-					return false;
-				}
-
 				// activate consider if within x tolerance
 				int touchSlop =
 						ViewConfiguration.get(TerminalView.this.context).getScaledTouchSlop();
@@ -219,7 +217,7 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 					// enabled.
 					boolean pgUpDnGestureEnabled =
 							prefs.getBoolean(PreferenceConstants.PG_UPDN_GESTURE, false);
-					if (e2.getX() <= getWidth() / 3 && pgUpDnGestureEnabled) {
+					if (pgUpDnGestureEnabled && e2.getX() <= getWidth() / 3) {
 						// otherwise consume as pgup/pgdown for every 5 lines
 						if (moved > 5) {
 							((vt320) bridge.buffer).keyPressed(vt320.KEY_PAGE_DOWN, ' ', 0);
@@ -230,14 +228,16 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 							bridge.tryKeyVibrate();
 							totalY = 0;
 						}
-					} else if (moved != 0) {
+						return true;
+					} else if (terminalTextViewOverlay == null && moved != 0) {
 						int base = bridge.buffer.getWindowBase();
 						bridge.buffer.setWindowBase(base + moved);
 						totalY = 0;
+						return false;
 					}
 				}
 
-				return true;
+				return false;
 			}
 
 			@Override
@@ -264,8 +264,8 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if (gestureDetector != null) {
-			gestureDetector.onTouchEvent(event);
+		if (gestureDetector != null && gestureDetector.onTouchEvent(event)) {
+			return true;
 		}
 
 		// Old version of copying, only for pre-Honeycomb.
@@ -339,9 +339,7 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 			return true;
 		}
 
-		super.onTouchEvent(event);
-
-		return true;
+		return super.onTouchEvent(event);
 	}
 
 	/**
@@ -435,7 +433,8 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 
 				final int deadKey = bridge.getKeyHandler().getDeadKey();
 				if (deadKey != 0) {
-					canvas.drawText(new char[] { (char) deadKey }, 0, 1, 0, 0, cursorStrokePaint);
+					singleDeadKey[0] = (char) deadKey;
+					canvas.drawText(singleDeadKey, 0, 1, 0, 0, cursorStrokePaint);
 				}
 
 				// Make sure we scale our decorations to the correct size.
@@ -641,19 +640,25 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 				final Cursor cursor = cr.query(
 						Uri.parse("content://" + screenReader.serviceInfo.packageName
 								+ ".providers.StatusProvider"), null, null, null, null);
-				if (cursor != null && cursor.moveToFirst()) {
-					/*
-					 * These content providers use a special cursor that only has
-					 * one element, an integer that is 1 if the screen reader is
-					 * running.
-					 */
-					final int status = cursor.getInt(0);
+				if (cursor != null) {
+					try {
+						if (!cursor.moveToFirst()) {
+							continue;
+						}
 
-					cursor.close();
+						/*
+						 * These content providers use a special cursor that only has
+						 * one element, an integer that is 1 if the screen reader is
+						 * running.
+						 */
+						final int status = cursor.getInt(0);
 
-					if (status == 1) {
-						foundScreenReader = true;
-						break;
+						if (status == 1) {
+							foundScreenReader = true;
+							break;
+						}
+					} finally {
+						cursor.close();
 					}
 				}
 			}

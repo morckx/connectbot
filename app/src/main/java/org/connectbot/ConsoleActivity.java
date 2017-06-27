@@ -130,7 +130,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 
 	private RelativeLayout booleanPromptGroup;
 	private TextView booleanPrompt;
-	private Button booleanYes, booleanNo;
+	private Button booleanYes;
 
 	private LinearLayout keyboardGroup;
 	private Runnable keyboardGroupHider;
@@ -142,8 +142,6 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 	private Animation fade_out_delayed;
 
 	private Animation keyboard_fade_in, keyboard_fade_out;
-
-	private InputMethodManager inputManager;
 
 	private MenuItem disconnect, copy, paste, portForward, resize, urlscan;
 
@@ -422,10 +420,11 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			break;
 		}
 
-		if (hideKeys)
+		if (hideKeys) {
 			hideEmulatedKeys();
-		else
+		} else {
 			autoHideEmulatedKeys();
+		}
 
 		terminal.bridge.tryKeyVibrate();
 		hideActionBarIfRequested();
@@ -481,14 +480,17 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 	}
 
 	private void autoHideEmulatedKeys() {
-		if (keyboardGroupHider != null)
+		if (keyboardGroupHider != null) {
 			handler.removeCallbacks(keyboardGroupHider);
+		}
+
 		keyboardGroupHider = new Runnable() {
 			public void run() {
-				if (keyboardGroup.getVisibility() == View.GONE || inActionBarMenu || inEmulatedKeyDrag)
+				if (keyboardGroup.getVisibility() == View.GONE || inActionBarMenu || inEmulatedKeyDrag) {
 					return;
+				}
 
-				if (keyboardAlwaysVisible == false) {
+				if (!keyboardAlwaysVisible) {
 					keyboardGroup.startAnimation(keyboard_fade_out);
 					keyboardGroup.setVisibility(View.GONE);
 				}
@@ -500,7 +502,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 	}
 
 	private void hideEmulatedKeys() {
-		if (keyboardAlwaysVisible == false) {
+		if (!keyboardAlwaysVisible) {
 			if (keyboardGroupHider != null)
 				handler.removeCallbacks(keyboardGroupHider);
 			keyboardGroup.setVisibility(View.GONE);
@@ -615,7 +617,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			}
 		});
 
-		booleanNo = (Button) findViewById(R.id.console_prompt_no);
+		Button booleanNo = (Button) findViewById(R.id.console_prompt_no);
 		booleanNo.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				PromptHelper helper = getCurrentPromptHelper();
@@ -630,8 +632,6 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 		// Preload animation for keyboard button
 		keyboard_fade_in = AnimationUtils.loadAnimation(this, R.anim.keyboard_fade_in);
 		keyboard_fade_out = AnimationUtils.loadAnimation(this, R.anim.keyboard_fade_out);
-
-		inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 
 		keyboardGroup = (LinearLayout) findViewById(R.id.keyboard_group);
 
@@ -697,7 +697,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			actionBar.addOnMenuVisibilityListener(new ActionBar.OnMenuVisibilityListener() {
 				public void onMenuVisibilityChanged(boolean isVisible) {
 					inActionBarMenu = isVisible;
-					if (isVisible == false) {
+					if (!isVisible) {
 						hideEmulatedKeys();
 					}
 				}
@@ -1262,7 +1262,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 				TextView urlView = (TextView) view;
 
 				String url = urlView.getText().toString();
-				if (url.indexOf("://") < 0)
+				if (url.contains("://"))
 					url = "http://" + url;
 
 				Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));

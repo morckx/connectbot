@@ -1524,7 +1524,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 		}
 		String emulatedKeyMap = sb.toString();
 		edit.putString(PreferenceConstants.KEY_MAP, emulatedKeyMap);
-		edit.commit();
+		edit.apply();
 	}
 
 	public int[] loadEmulatedKeyMap() {

@@ -93,7 +93,7 @@ public class TerminalBridge implements VDUDisplay {
 	private boolean awaitingClose = false;
 
 	private boolean forcedSize = false;
-	private int columns;
+	public int columns;
 	private int rows;
 
 	private final TerminalKeyListener keyListener;

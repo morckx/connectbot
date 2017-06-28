@@ -34,9 +34,9 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.ScaleGestureDetector;
 import android.widget.TextView;
 import de.mud.terminal.VDUBuffer;
 import de.mud.terminal.vt320;
@@ -83,7 +83,7 @@ public class TerminalTextViewOverlay extends TextView {
 		int previousTotalLength = 0;
 
 		for (int r = 0; r < numRows && vb.charArray[r] != null; r++) {
-			for (int c = 0; c < numCols; c++) {
+			for (int c = 0; c <= numCols; c++) {
 				buffer.append(vb.charArray[r][c]);
 			}
 
@@ -150,6 +150,15 @@ public class TerminalTextViewOverlay extends TextView {
 
 	public void copyCurrentSelectionToClipboard() {
 		if (currentSelection.length() != 0) {
+			StringBuilder newSelection = new StringBuilder();
+			final String[] lines = currentSelection.split("\n");
+			for (int i = 0; i < lines.length; i++) {
+				newSelection.append(lines[i]);
+				if (lines[i].length() < terminalView.bridge.columns - 1
+						&& i < lines.length - 1)
+					newSelection.append('\n');
+			}
+			currentSelection = newSelection.toString();
 			clipboard.setText(currentSelection);
 		}
 		closeSelectionActionMode();

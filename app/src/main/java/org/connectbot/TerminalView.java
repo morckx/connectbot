@@ -77,7 +77,7 @@ public class TerminalView extends FrameLayout implements FontSizeChangedListener
 	private final Context context;
 	public final TerminalBridge bridge;
 
-	private TerminalTextViewOverlay terminalTextViewOverlay;
+	public TerminalTextViewOverlay terminalTextViewOverlay;
 	public final TerminalViewPager viewPager;
 	private GestureDetector gestureDetector;
 	private SharedPreferences prefs;

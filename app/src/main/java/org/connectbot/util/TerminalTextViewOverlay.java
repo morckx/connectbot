@@ -75,6 +75,9 @@ public class TerminalTextViewOverlay extends TextView {
 
 	public void refreshTextFromBuffer() {
 		VDUBuffer vb = terminalView.bridge.getVDUBuffer();
+		if (!vb.updated)
+			return;
+
 		int numRows = vb.getBufferSize();
 		int numCols = vb.getColumns() - 1;
 		oldBufferHeight = numRows;
@@ -102,6 +105,7 @@ public class TerminalTextViewOverlay extends TextView {
 		oldScrollY = vb.getWindowBase() * getLineHeight();
 
 		setText(buffer);
+		vb.updated = false;
 	}
 
 	/**

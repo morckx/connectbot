@@ -1053,8 +1053,10 @@ public class TerminalBridge implements VDUDisplay {
 	 */
 	public void resetScrollPosition() {
 		// if we're in scrollback, scroll to bottom of window on input
-		if (buffer.windowBase != buffer.screenBase)
+		if (buffer.windowBase != buffer.screenBase) {
 			buffer.setWindowBase(buffer.screenBase);
+			parent.terminalTextViewOverlay.refreshTextFromBuffer();
+		}
 	}
 
 	/**

@@ -126,6 +126,7 @@ public abstract class vt320 extends VDUBuffer implements VDUInput {
         putChar((char) lastChar, isWide, false);
 
       setCursorPosition(C, R);
+      updated = true;
       redraw();
     }
   }

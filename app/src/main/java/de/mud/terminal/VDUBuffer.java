@@ -45,6 +45,7 @@ public class VDUBuffer {
 
   public int height, width;                          /* rows and columns */
   public boolean[] update;        /* contains the lines that need update */
+  public boolean updated = false;
   public char[][] charArray;                  /* contains the characters */
   public long[][] charAttributes;            /* contains character attrs */
   public int bufSize;
@@ -604,6 +605,8 @@ public class VDUBuffer {
    * @see #getBufferSize
    */
   public void setWindowBase(int line) {
+    if (line == windowBase)
+      return;
     if (line > screenBase)
       line = screenBase;
     else if (line < 0) line = 0;

@@ -526,16 +526,28 @@ public class TerminalBridge implements VDUDisplay {
 			return;
 		}
 
-		final int fontSizePx = (int) (sizeDp * displayDensity *	systemFontScale + 0.5f);
+		int fontSizePx = (int) (sizeDp * displayDensity * systemFontScale + 0.5f);
 
+		fontSizeDp = fontSizePx / displayDensity / systemFontScale;
+		fontSizePx = (int) (fontSizeDp * displayDensity * systemFontScale);
 		defaultPaint.setTextSize(fontSizePx);
-		fontSizeDp = sizeDp;
+
+		float[] widths = new float[1];
+		if (parent != null) {
+			defaultPaint.getTextWidths("X", widths);
+			final float maxCols = parent.getWidth() / widths[0];
+			final float correctionFactor = (float) (maxCols - Math.floor(maxCols) < 0.5 ?
+					Math.floor(maxCols) / maxCols : Math.ceil(maxCols) / maxCols);
+			fontSizeDp *= correctionFactor;
+			fontSizePx = (int) (fontSizeDp * displayDensity * systemFontScale);
+		}
+		defaultPaint.setTextSize(fontSizePx);
 
 		// read new metrics to get exact pixel dimensions
 		FontMetrics fm = defaultPaint.getFontMetrics();
 		charTop = (int) Math.ceil(fm.top);
 
-		float[] widths = new float[1];
+		fm = defaultPaint.getFontMetrics();
 		defaultPaint.getTextWidths("X", widths);
 		charWidth = (int) Math.ceil(widths[0]);
 		charHeight = (int) Math.ceil(fm.descent - fm.top);
@@ -546,10 +558,10 @@ public class TerminalBridge implements VDUDisplay {
 		}
 
 		for (FontSizeChangedListener ofscl : fontSizeChangedListeners) {
-			ofscl.onFontSizeChanged(sizeDp);
+			ofscl.onFontSizeChanged(fontSizeDp);
 		}
 
-		host.setFontSize((int) sizeDp);
+		host.setFontSize((int) (fontSizeDp + 0.5f));
 		manager.hostdb.saveHost(host);
 
 		forcedSize = false;

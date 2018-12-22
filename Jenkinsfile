@@ -18,7 +18,7 @@ pipeline {
 
     stage('Test') {
       steps {
-        gradlew 'check'
+        gradlew 'check jacocoTestReport'
 
         junit 'app/build/test-results/**/*.xml'
       }
@@ -39,10 +39,19 @@ pipeline {
   post {
     always {
       jacoco(
-        execPattern: 'app/build/jacoco/*.exec',
-        classPattern: 'app/build/intermediates/classes/google/release',
-        sourcePattern: 'app/src/main/java/org/connectbot'
+        execPattern: 'app/build/jacoco/*.exec, app/build/outputs/code-coverage/connected/**/*.ec',
+        sourcePattern: 'app/src/*/java',
+        classPattern: 'app/build/intermediates/javac/**/classes',
+        inclusionPattern: 'org/connectbot/**/*.class',
+        exclusionPattern: '**/R$*.class, **/*$ViewInjector*.*, **/BuildConfig.*, **/Manifest*.*'
       )
+
+      publishCoverage adapters: [
+          jacocoAdapter('app/build/reports/jacoco/jacocoTestGoogleDebugUnitTestReport/jacocoTestGoogleDebugUnitTestReport.xml'),
+          jacocoAdapter('app/build/reports/jacoco/jacocoTestGoogleReleaseUnitTestReport/jacocoTestGoogleReleaseUnitTestReport.xml'),
+          jacocoAdapter('app/build/reports/jacoco/jacocoTestOssDebugUnitTestReport/jacocoTestOssDebugUnitTestReport.xml'),
+          jacocoAdapter('app/build/reports/jacoco/jacocoTestOssReleaseUnitTestReport/jacocoTestOssReleaseUnitTestReport.xml')
+      ]
 
       dir('app/build') {
         archiveArtifacts artifacts: 'outputs/apk/**/*.apk', fingerprint: true

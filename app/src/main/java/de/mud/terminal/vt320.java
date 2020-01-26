@@ -761,6 +761,18 @@ public void setScreenSize(int c, int r, boolean broadcast) {
   public final static int KEY_ADD = 42;
   public final static int KEY_ESCAPE = 43;
 
+  public final static int KEY_PIPE = 44;
+  public final static int KEY_LEFT_BRACKET = 45;
+  public final static int KEY_RIGHT_BRACKET = 46;
+  public final static int KEY_LEFT_BRACE = 47;
+  public final static int KEY_RIGHT_BRACE = 48;
+  public final static int KEY_BACK_SLASH = 49;
+  public final static int KEY_LESS_THAN = 50;
+  public final static int KEY_GREATER_THAN = 51;
+  public final static int KEY_DOLLAR = 52;
+  public final static int KEY_AMPERSAND = 53;
+  public final static int KEY_SLASH = 54;
+
   public final static int DELETE_IS_DEL = 0;
   public final static int DELETE_IS_BACKSPACE = 1;
 
@@ -1061,6 +1073,41 @@ public void setScreenSize(int c, int r, boolean broadcast) {
       case KEY_CONTROL:
       case KEY_ALT:
         return;
+
+      case KEY_PIPE:
+        write("|", false);
+        break;
+      case KEY_LEFT_BRACKET:
+        write("[", false);
+        break;
+      case KEY_RIGHT_BRACKET:
+        write("]", false);
+        break;
+      case KEY_LEFT_BRACE:
+        write("{", false);
+        break;
+      case KEY_RIGHT_BRACE:
+        write("}", false);
+        break;
+      case KEY_BACK_SLASH:
+        write("\\", false);
+        break;
+      case KEY_LESS_THAN:
+        write("<", false);
+        break;
+      case KEY_GREATER_THAN:
+        write(">", false);
+        break;
+      case KEY_DOLLAR:
+        write("$", false);
+        break;
+      case KEY_AMPERSAND:
+        write("&", false);
+        break;
+      case KEY_SLASH:
+        write("/", false);
+        break;
+
       default:
         break;
     }

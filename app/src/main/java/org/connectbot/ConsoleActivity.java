@@ -20,6 +20,7 @@ package org.connectbot;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.connectbot.bean.HostBean;
 import org.connectbot.service.BridgeDisconnectedListener;
@@ -33,6 +34,7 @@ import org.connectbot.util.TerminalViewPager;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Dialog;
+import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -60,6 +62,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import android.text.ClipboardManager;
 import android.util.Log;
+import android.view.DragEvent;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -75,7 +78,9 @@ import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
 import android.view.animation.AnimationUtils;
+import android.view.animation.RotateAnimation;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
@@ -90,6 +95,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import de.mud.terminal.vt320;
+
 
 public class ConsoleActivity extends AppCompatActivity implements BridgeDisconnectedListener {
 	public final static String TAG = "CB.ConsoleActivity";
@@ -128,6 +134,8 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 
 	private LinearLayout keyboardGroup;
 	private Runnable keyboardGroupHider;
+	private LinearLayout emulatedKeys;
+	private int[] emulatedKeyMap;
 
 	private TextView empty;
 
@@ -147,6 +155,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 
 	@Nullable private ActionBar actionBar;
 	private boolean inActionBarMenu = false;
+	private boolean inEmulatedKeyDrag = false;
 	private boolean titleBarHide;
 	private boolean keyboardAlwaysVisible = false;
 
@@ -311,6 +320,41 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			handler.sendTab();
 			hideKeys = true;
 			break;
+		case R.id.button_pipe:
+			handler.sendPressedKey(vt320.KEY_PIPE);
+			break;
+		case R.id.button_left_bracket:
+			handler.sendPressedKey(vt320.KEY_LEFT_BRACKET);
+			break;
+		case R.id.button_right_bracket:
+			handler.sendPressedKey(vt320.KEY_RIGHT_BRACKET);
+			break;
+		case R.id.button_left_brace:
+			handler.sendPressedKey(vt320.KEY_LEFT_BRACE);
+			break;
+		case R.id.button_right_brace:
+			handler.sendPressedKey(vt320.KEY_RIGHT_BRACE);
+			break;
+		case R.id.button_back_slash:
+			handler.sendPressedKey(vt320.KEY_BACK_SLASH);
+			break;
+
+		case R.id.button_less_than:
+			handler.sendPressedKey(vt320.KEY_LESS_THAN);
+			break;
+		case R.id.button_greater_than:
+			handler.sendPressedKey(vt320.KEY_GREATER_THAN);
+			break;
+
+		case R.id.button_dollar:
+			handler.sendPressedKey(vt320.KEY_DOLLAR);
+			break;
+		case R.id.button_ampersand:
+			handler.sendPressedKey(vt320.KEY_AMPERSAND);
+			break;
+		case R.id.button_slash:
+			handler.sendPressedKey(vt320.KEY_SLASH);
+			break;
 
 		case R.id.button_up:
 			handler.sendPressedKey(vt320.KEY_UP);
@@ -446,7 +490,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 		keyboardGroupHider = new Runnable() {
 			@Override
 			public void run() {
-				if (keyboardGroup.getVisibility() == View.GONE || inActionBarMenu) {
+				if (keyboardGroup.getVisibility() == View.GONE || inActionBarMenu || inEmulatedKeyDrag) {
 					return;
 				}
 
@@ -473,6 +517,12 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 	@TargetApi(11)
 	private void requestActionBar() {
 		supportRequestWindowFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+	}
+
+	@TargetApi(11)
+	private void addDragAndDropFunctionality(View emulatedKeyButton) {
+		emulatedKeyButton.setOnLongClickListener(new KeyLongClickListener());
+		emulatedKeyButton.setOnDragListener(new KeyDragListener());
 	}
 
 	@Override
@@ -627,34 +677,29 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 				hideEmulatedKeys();
 			}
 		});
+		emulatedKeys = (LinearLayout) findViewById(R.id.emulated_keys_layout);
+		View emulatedKeyButton;
 
-		findViewById(R.id.button_ctrl).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_esc).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_tab).setOnClickListener(emulatedKeysListener);
+		emulatedKeyMap = loadEmulatedKeyMap();
+		for (int i = 0, j = 0; i < emulatedKeyMap.length; i++) {
+			emulatedKeyButton = emulatedKeys.findViewById(emulatedKeyMap[i]);
+			if (emulatedKeyButton != null) {
+				emulatedKeys.removeView(emulatedKeyButton);
+				emulatedKeys.addView(emulatedKeyButton, j++);
+			}
+		}
+
+		for (int i = 0; i < emulatedKeys.getChildCount(); i++) {
+			emulatedKeyButton = emulatedKeys.getChildAt(i);
+			emulatedKeyButton.setOnClickListener(emulatedKeysListener);
+			addDragAndDropFunctionality(emulatedKeyButton);
+		}
 
 		addKeyRepeater(findViewById(R.id.button_up));
 		addKeyRepeater(findViewById(R.id.button_up));
 		addKeyRepeater(findViewById(R.id.button_down));
 		addKeyRepeater(findViewById(R.id.button_left));
 		addKeyRepeater(findViewById(R.id.button_right));
-
-		findViewById(R.id.button_home).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_end).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_pgup).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_pgdn).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f1).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f2).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f3).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f4).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f5).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f6).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f7).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f8).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f9).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f10).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f11).setOnClickListener(emulatedKeysListener);
-		findViewById(R.id.button_f12).setOnClickListener(emulatedKeysListener);
-
 
 		actionBar = getSupportActionBar();
 		if (actionBar != null) {
@@ -680,7 +725,7 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			keyboardScroll.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					final int xscroll = findViewById(R.id.button_f12).getRight();
+					final int xscroll = emulatedKeys.getRight();
 					if (BuildConfig.DEBUG) {
 						Log.d(TAG, "smoothScrollBy(toEnd[" + xscroll + "])");
 					}
@@ -692,6 +737,12 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 								Log.d(TAG, "smoothScrollBy(toStart[" + -xscroll + "])");
 							}
 							keyboardScroll.smoothScrollBy(-xscroll, 0);
+							keyboardScroll.postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									shakeChildren(emulatedKeys);
+								}
+							}, 500);
 						}
 					}, 500);
 				}
@@ -748,6 +799,30 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 					}
 				}
 			});
+	}
+
+	private void shakeChildren(LinearLayout l) {
+		Random rand = new Random();
+		for (int i = 0; i < l.getChildCount(); i++) {
+			View v = l.getChildAt(i);
+			AnimationSet animationSet = new AnimationSet(true);
+			RotateAnimation rotate = new RotateAnimation(
+					-rand.nextInt(5),
+					rand.nextInt(5),
+					Animation.RELATIVE_TO_SELF, rand.nextFloat() * 0.5f + 0.3f,
+					Animation.RELATIVE_TO_SELF, rand.nextFloat() * 0.5f + 0.3f);
+			rotate.setDuration(rand.nextInt(70) + 150);
+			rotate.setRepeatMode(Animation.REVERSE);
+			Animation anim = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.keyboard_shake);
+			anim.setRepeatMode(Animation.RESTART);
+			animationSet.addAnimation(anim);
+			animationSet.addAnimation(rotate);
+			animationSet.setRepeatCount(10);
+			animationSet.setFillAfter(false);
+
+			v.clearAnimation();
+			v.startAnimation(animationSet);
+		}
 	}
 
 	private void addKeyRepeater(View view) {
@@ -1390,5 +1465,106 @@ public class ConsoleActivity extends AppCompatActivity implements BridgeDisconne
 			}
 			return (TerminalView) currentView.findViewById(R.id.terminal_view);
 		}
+	}
+
+	@TargetApi(11)
+	private final class KeyLongClickListener implements View.OnLongClickListener {
+		@Override
+		public boolean onLongClick(View view) {
+			Rect rect = new Rect(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+			ClipData data = ClipData.newPlainText("", "");
+			View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(view);
+			view.startDrag(data, shadowBuilder, view, 1);
+			return true;
+		}
+	}
+
+	@TargetApi(11)
+	private class KeyDragListener implements View.OnDragListener {
+		private final HorizontalScrollView keyboardScroll = (HorizontalScrollView) findViewById(R.id.keyboard_hscroll);
+		private boolean saved = true;
+		private int itemWidth;
+
+		@Override
+		public boolean onDrag(View dropTarget, DragEvent event) {
+
+			Object localState = event.getLocalState();
+			if (!(localState instanceof Button))
+				return false;
+
+			View dragged = (View) localState;
+
+			switch (event.getAction()) {
+			case DragEvent.ACTION_DRAG_STARTED:
+				itemWidth = dragged.getWidth();
+				inEmulatedKeyDrag = true;
+				break;
+
+			case DragEvent.ACTION_DRAG_ENTERED:
+				break;
+
+			case DragEvent.ACTION_DRAG_LOCATION:
+				final int translatedX = (int) (dropTarget.getX() + event.getX()) - keyboardScroll.getScrollX();
+				final int scrollThreshold = itemWidth;
+				int move = translatedX - scrollThreshold;
+				if (move < 0) {
+					keyboardScroll.smoothScrollBy(move, 0);
+					break;
+				}
+				move = translatedX + scrollThreshold - keyboardScroll.getWidth();
+				if (move > 0) {
+					keyboardScroll.smoothScrollBy(move, 0);
+				}
+				break;
+
+			case DragEvent.ACTION_DROP:
+				saved = false;
+				emulatedKeys.removeView(dragged);
+				emulatedKeys.addView(dragged, (int) (dropTarget.getX() / itemWidth));
+				break;
+			case DragEvent.ACTION_DRAG_EXITED:
+				break;
+			case DragEvent.ACTION_DRAG_ENDED:
+				if (!saved) {
+					saveEmulatedKeyMap();
+					saved = true;
+				}
+				inEmulatedKeyDrag = false;
+				break;
+
+			default:
+				break;
+			}
+			return true;
+		}
+	}
+
+	public void saveEmulatedKeyMap() {
+		String delim = "";
+		View emulatedKeyButton;
+		SharedPreferences.Editor edit = prefs.edit();
+		int count = emulatedKeys.getChildCount();
+		StringBuilder sb = new StringBuilder();
+
+		for (int i = 0; i < count; i++) {
+			emulatedKeyButton = emulatedKeys.getChildAt(i);
+			sb.append(delim + getResources().getResourceEntryName(emulatedKeyButton.getId()));
+			delim = " ";
+		}
+		String emulatedKeyMap = sb.toString();
+		edit.putString(PreferenceConstants.KEY_MAP, emulatedKeyMap);
+		edit.apply();
+	}
+
+	@SuppressWarnings("StringSplitter")
+	public int[] loadEmulatedKeyMap() {
+		int[] ret;
+		String[] emulatedKeyMap = prefs.getString(PreferenceConstants.KEY_MAP, "").split(" +");
+		int count = emulatedKeyMap.length;
+		ret = new int[count];
+		for (int i = 0; i < count; i++) {
+			ret[i] = this.getResources().getIdentifier(emulatedKeyMap[i], "id", this.getPackageName());
+		}
+		return ret;
 	}
 }
